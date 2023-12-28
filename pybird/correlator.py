@@ -604,9 +604,12 @@ class Correlator(object):
                 spk = interp1d(kp, smooth_pk, bounds_error=False)(kk * M.h()) * M.h()**3 # (Mpc/h)**3
                 wpk_resc = interp1d(kp, wiggle_pk, bounds_error=False)(alpha_rs * kk * M.h()) * M.h()**3 # (Mpc/h)**3 # wiggle rescaling
                 kmask = np.where(kk < 1.02)[0]
-                return kk[kmask], spk[kmask], pk[kmask] #spk[kmask]+wpk_resc[kmask]
+                return kk[kmask], spk[kmask], spk[kmask]+wpk_resc[kmask]  # pk[kmask] lzy
 
             if self.c["with_nnlo_counterterm"]: cosmo["kk"], cosmo["Psmooth"], cosmo["pk_lin"] = get_smooth_wiggle_resc(cosmo["kk"], cosmo["pk_lin"])
+            if cosmo_dict:
+                if "alpha_rs" in cosmo_dict:
+                    cosmo["kk"], cosmo["Psmooth"], cosmo["pk_lin"] = get_smooth_wiggle_resc(cosmo["kk"], cosmo["pk_lin"],alpha_rs=cosmo_dict['alpha_rs'])  #lzy
 
             return cosmo
 
