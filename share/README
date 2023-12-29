@@ -1,0 +1,5 @@
+sampler.py: modified MontePython script for minimization with minuit (python montepython/MontePython.py --minimize path/to/folder)
+superminimize.sh / slurm_superminimize.sh: bash script to launch super-minimization with MontePython (after minuit minimization)
+start_create_param.sh: bash script to edit files using 'sed' command
+
+!!!!!!!!!!!!!!!IMPORTANT: WHEN MINIMIZING, PUT 'get_maxlkl: True' IN THE CONFIG FILE!!!!!!!!!!!!!!!
