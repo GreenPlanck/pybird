@@ -3,9 +3,9 @@ import numpy as np
 from numpy import pi, cos, sin, log, exp, sqrt, trapz
 from scipy.interpolate import interp1d
 
-from pybird.fftlog import FFTLog, MPC, CoefWindow
-from pybird.common import co
-from pybird.resumfactor import Qa, Qawithhex, Qawithhex20
+from .fftlog import FFTLog, MPC, CoefWindow
+from .common import co
+from .resumfactor import Qa, Qawithhex, Qawithhex20
 
 class Resum(object):
     """

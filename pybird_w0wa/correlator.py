@@ -2,17 +2,18 @@ import os
 import numpy as np
 from copy import deepcopy
 from scipy.interpolate import interp1d
+from scipy.integrate import quad
 from scipy.fftpack import dst
 
-from pybird.common import Common, co
-from pybird.bird import Bird
-from pybird.nonlinear import NonLinear
-from pybird.nnlo import NNLO_higher_derivative, NNLO_counterterm
-from pybird.resum import Resum
-from pybird.projection import Projection
-from pybird.greenfunction import GreenFunction
-from pybird.fourier import FourierTransform
-from pybird.matching import Matching
+from .common import Common, co
+from .bird import Bird
+from .nonlinear import NonLinear
+from .nnlo import NNLO_higher_derivative, NNLO_counterterm
+from .resum import Resum
+from .projection import Projection
+from .greenfunction import GreenFunction
+from .fourier import FourierTransform
+from .matching import Matching
 
 # ### dev mode ###
 # import importlib, pybird
@@ -72,6 +73,10 @@ class Correlator(object):
             "w0_fld": Option("w0_fld", float,
                 description="Dark energy equation of state parameter. To specify in presence of dark energy if \'with_exact_time\' is True (otherwise w0 = -1).",
                 default=None) ,
+            "wa_fld": Option("wa_fld", float,
+                description="w0wa",
+                default=0.) ,
+            
             "Dz": Option("Dz", (list, np.ndarray),
                 description="Scale independent growth function over redshift bin. To specify if \'with_redshift_bin\' is True.",
                 default=None) ,
@@ -560,7 +565,9 @@ class Correlator(object):
             if self.c["with_exact_time"] or self.c["with_quintessence"]:
                 cosmo["z"] = self.c["z"]
                 cosmo["Omega0_m"] = M.Omega0_m()
-                if "w0_fld" in cosmo_dict: cosmo["w0_fld"] = cosmo_dict["w0_fld"]
+                if "w0_fld" in cosmo_dict: 
+                    cosmo["w0_fld"] = cosmo_dict["w0_fld"]
+                    cosmo["wa_fld"] = cosmo_dict["wa_fld"]
             if self.c["with_ap"]:
                 cosmo["H"], cosmo["DA"] = M.Hubble(self.c["z"]) / M.Hubble(0.), M.angular_distance(self.c["z"]) * M.Hubble(0.)
 
@@ -570,19 +577,48 @@ class Correlator(object):
                 cosmo["fz"] = np.array([M.scale_independent_growth_factor_f(z) for z in self.c["redshift_bin_zz"]])
                 cosmo["rz"] = np.array([comoving_distance(z) for z in self.c["redshift_bin_zz"]])
 
-            if self.c["with_quintessence"]:
-                # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum.
+            # if self.c["with_quintessence"]:
+            #     # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum.
+            #     # This does not work in the general case, e.g. with massive neutrinos (okish for minimal mass though)
+            #     # This does not work for 'with_redshift_bin': True. # eventually to code up
+            #     zm = 5. # z in matter domination
+            #     zfid = self.c['z']
+            #     def scale_factor(z): return 1/(1.+z)
+            #     Omega0_m = cosmo["Omega0_m"]
+            #     w = cosmo["w0_fld"]
+            #     GF = GreenFunction(Omega0_m, w=w, quintessence=True)
+            #     Dq = GF.D(np.log(scale_factor(zfid))) / GF.D(np.log(scale_factor(zm)))
+            #     Dm = M.scale_independent_growth_factor(self.c["z"]) / M.scale_independent_growth_factor(zm)
+            #     factor1 = ( 1 + (1+w)/(1.-3*w) * (1-Omega0_m)/Omega0_m * (1+zm)**(3*w) )**2
+            #     factor2 = Dq**2 / Dm**2
+            #     cosmo["pk_lin"] *= (factor1*factor2)
+            #     cosmo["f"] = float(GF.fplus(np.log(1/(1.+self.c["z"]))))
+
+            if self.c["with_quintessence"]: 
+                # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum. 
                 # This does not work in the general case, e.g. with massive neutrinos (okish for minimal mass though)
-                # This does not work for 'with_redshift_bin': True. # eventually to code up
+                # This does not work for multi multiskys nor for redshift bins.
                 zm = 5. # z in matter domination
+                zfid = self.c['z']
                 def scale_factor(z): return 1/(1.+z)
+                cosmo["Omega0_m"] = M.Omega0_m()
                 Omega0_m = cosmo["Omega0_m"]
-                w = cosmo["w0_fld"]
-                GF = GreenFunction(Omega0_m, w=w, quintessence=True)
-                Dq = GF.D(scale_factor(zfid)) / GF.D(scale_factor(zm))
-                Dm = M.scale_independent_growth_factor(self.c["z"]) / M.scale_independent_growth_factor(zm)
-                cosmo["pk_lin"] *= Dq**2 / Dm**2 * ( 1 + (1+w)/(1.-3*w) * (1-Omega0_m)/Omega0_m * (1+zm)**(3*w) )**2 # 1611.07966 eq. (4.15)
-                cosmo["f"] = GF.fplus(1/(1.+self.c["z"]))
+                w0 = cosmo["w0_fld"]
+                wa = cosmo["wa_fld"]
+                GF = GreenFunction(Omega0_m, w=w0,wa=wa, quintessence=True)
+                Dq = GF.D(np.log(scale_factor(zfid))) / GF.D(np.log(scale_factor(zm)))
+                Dm = M.scale_independent_growth_factor(zfid) / M.scale_independent_growth_factor(zm)
+                def C(a):
+                    if wa==0 or wa==None:
+                        return 1+(1+w0)*(1-Omega0_m)/Omega0_m*a**(-3*w0)
+                    elif wa!=0:
+                        return 1+(1+w0+wa-a*wa)*(1-Omega0_m)/Omega0_m*a**(-3*w0-3*wa)*np.exp(3*wa*(a-1))
+                    else:
+                        raise ValueError('error about dark energy settings')
+                am = 1/(1+zm)
+                factor = quad(C,0,am)[0]/am
+                cosmo["pk_lin"] *= Dq**2 / Dm**2 *factor**2 # 1611.07966 eq. (4.15)
+                cosmo["f"] = float(GF.fplus(np.log(1/(1.+self.c["z"]))))
 
             # wiggle-no-wiggle split # algo: 1003.3999; details: 2004.10607
             def get_smooth_wiggle_resc(kk, pk, alpha_rs=1.): # k [h/Mpc], pk [(Mpc/h)**3]
@@ -604,12 +640,9 @@ class Correlator(object):
                 spk = interp1d(kp, smooth_pk, bounds_error=False)(kk * M.h()) * M.h()**3 # (Mpc/h)**3
                 wpk_resc = interp1d(kp, wiggle_pk, bounds_error=False)(alpha_rs * kk * M.h()) * M.h()**3 # (Mpc/h)**3 # wiggle rescaling
                 kmask = np.where(kk < 1.02)[0]
-                return kk[kmask], spk[kmask], spk[kmask]+wpk_resc[kmask]  # pk[kmask] lzy
+                return kk[kmask], spk[kmask], pk[kmask] #spk[kmask]+wpk_resc[kmask]
 
             if self.c["with_nnlo_counterterm"]: cosmo["kk"], cosmo["Psmooth"], cosmo["pk_lin"] = get_smooth_wiggle_resc(cosmo["kk"], cosmo["pk_lin"])
-            if cosmo_dict:
-                if "alpha_rs" in cosmo_dict:
-                    cosmo["kk"], cosmo["Psmooth"], cosmo["pk_lin"] = get_smooth_wiggle_resc(cosmo["kk"], cosmo["pk_lin"],alpha_rs=cosmo_dict['alpha_rs'])  #lzy
 
             return cosmo
 

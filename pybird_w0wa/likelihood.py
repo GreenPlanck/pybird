@@ -3,8 +3,8 @@ import numpy as np
 from scipy.constants import c as c_light
 from scipy.linalg import block_diag
 
-from pybird.correlator import Correlator
-from pybird.io_pb import ReadWrite
+from .correlator import Correlator
+from .io_pb import ReadWrite
 
 class Likelihood(object):
     """EFT Likelihood"""
@@ -161,13 +161,9 @@ class Likelihood(object):
             b_sky.append({bn: free_b_sky[i][n] for n, fbn in enumerate(free_b_name_sky[i]) for bn in self.b_name if fbn.split('_', 1)[0] == bn})
             b_sky[i].update({bn: 0. for bn in self.b_name if bn not in b_sky[i]})
 
-        if need_cosmo_update or self.c['with_rs_marg']:
+        if need_cosmo_update:
             for i in range(self.nsky): 
-                if self.c["with_rs_marg"]: 
-                    self.correlator_sky[i].compute(cosmo_dict={'alpha_rs':alpha_rs_marg}, cosmo_module='class', cosmo_engine=class_engine)
-                else:
-                    self.correlator_sky[i].compute(cosmo_dict=None, cosmo_module='class', cosmo_engine=class_engine)
-                    
+                self.correlator_sky[i].compute(cosmo_dict=None, cosmo_module='class', cosmo_engine=class_engine) # PZ: add alpha_rs here
                 if self.c["with_bao_rec"]: self.alpha_sky[i] = self.get_alpha_bao_rec(class_engine, i_sky=i)
         
         if self.marg_lkl:

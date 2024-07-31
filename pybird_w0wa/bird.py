@@ -3,8 +3,8 @@ import numpy as np
 from numpy import pi, cos, sin, log, exp, sqrt, trapz
 from scipy.interpolate import interp1d
 
-from pybird.common import co, mu
-from pybird.greenfunction import GreenFunction
+from .common import co, mu
+from .greenfunction import GreenFunction
 
 class Bird(object):
     """
@@ -187,27 +187,32 @@ class Bird(object):
         self.H = cosmo["H"]
 
         if self.co.exact_time:
-            if "w0_fld" in cosmo: self.w0 = cosmo["w0_fld"]
-            else: self.w0 = None
+            if "w0_fld" in cosmo: 
+                self.w0 = cosmo["w0_fld"]
+                self.wa = cosmo["wa_fld"]
+            else: 
+                self.w0 = None
+                self.wa = 0.
             self.Omega0_m = cosmo["Omega0_m"]
             self.z = cosmo["z"]
             # print (self.z, self.Omega0_m)
             self.a = 1/(1.+self.z)
-            GF = GreenFunction(self.Omega0_m, w=self.w0, quintessence=self.co.quintessence)
+            GF = GreenFunction(self.Omega0_m, w=self.w0,wa=self.wa, quintessence=self.co.quintessence)
             self.Y1 = GF.Y(self.a)
             self.G1t = GF.mG1t(self.a)
             self.V12t = GF.mV12t(self.a)
             if self.co.quintessence:
                 self.G1 = GF.G(self.a)
-                self.f = GF.fplus(self.a)
+                self.f = float(GF.fplus(np.log(self.a)))
             else: self.G1 = 1.
             # print (self.Y1, self.G1t, self.V12t, self.G1, self.f, GF.fplus(self.a))
             
             # print ("setting EdS time approximation")
-            # self.Y1 = 0.
-            # self.G1t = 3/7.
-            # self.V12t = 1/7.
-            # self.G1 = 1.
+        
+            #self.Y1 = 0.
+            #self.G1t = 3/7.
+            #self.V12t = 1/7.
+            #self.G1 = 1.
 
         if self.co.nonequaltime:
             self.D = cosmo["D"]

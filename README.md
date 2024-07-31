@@ -1,4 +1,19 @@
+# PyBird_w0wa
+The exact-time for cluster-quintessence and smooth-quintessence with w0wa dark energy.
 
+Install this branch by: 
+```
+pip install -e . 
+```
+
+and it can be used as: 
+```
+import pybird_w0wa
+```
+
+In one of the notebook, we use pybird_master which is the master version of the pybird https://github.com/pierrexyz/pybird
+
+The bispectrum plots require additional packages.
 
 # PyBird
 **The Python code for Biased tracers in redshift space**  

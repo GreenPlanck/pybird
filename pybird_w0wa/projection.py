@@ -4,10 +4,10 @@ from numpy import pi, cos, sin, log, exp, sqrt, trapz
 from scipy.interpolate import interp1d
 from scipy.integrate import quad
 from scipy.special import legendre, spherical_jn, j1
-from pybird.fftlog import FFTLog, MPC
-from pybird.common import co
-from pybird.greenfunction import GreenFunction
-from pybird.fourier import FourierTransform
+from .fftlog import FFTLog, MPC
+from .common import co
+from .greenfunction import GreenFunction
+from .fourier import FourierTransform
 
 # import importlib, sys
 # importlib.reload(sys.modules['greenfunction'])
