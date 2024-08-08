@@ -1,10 +1,12 @@
 #from pybird.module import *
 from scipy.integrate import quad
 from scipy.interpolate import CubicSpline
-from diffrax import diffeqsolve, Dopri5, ODETerm, SaveAt, PIDController
-import jax
-from jax.numpy import exp,log,linspace
-jax.config.update("jax_enable_x64", True)
+# from diffrax import diffeqsolve, Dopri5, ODETerm, SaveAt, PIDController
+# import jax
+# from jax.numpy import exp,log,linspace
+# jax.config.update("jax_enable_x64", True)
+from scipy.integrate import odeint
+from numpy import exp,log,linspace,array
 
 
 # numerical D,DD+,D-,DD-
@@ -86,8 +88,10 @@ class GreenFunction(object):
         Dminusi = ai**(-3/2)
         dDminusi = -3./2.*ai**(-3./2.)
         return dDi,Di,dDminusi,Dminusi  
+    
 
-    def vector_field(self,x, y,args):
+
+    def vector_field(self,y,x):
         a = exp(x)
         dD,D, dDminus,Dminus= y
         
@@ -108,33 +112,75 @@ class GreenFunction(object):
         D_dDminus = (epsilon-2)*dDminus+F*Dminus
 
         
-        D_y = D_dD,D_D,D_dDminus,D_Dminus
+        D_y = [D_dD,D_D,D_dDminus,D_Dminus]
         return D_y  
     
     def interpD(self):
         
-        stepsize_controller = PIDController(rtol=1e-8, atol=1e-10)#ConstantStepSize()#
-        term = ODETerm(self.vector_field)
-        solver = Dopri5()
         x0 = self.x0
         x1 = 0.
-        dt0 = None
-        y0 = self.get_ini(x0)
-        saveat = SaveAt(ts=linspace(x0, x1, 500))
-        sol = diffeqsolve(term, solver, x0, x1, dt0, y0, saveat=saveat,stepsize_controller=stepsize_controller)
-        
-        x = sol.ts
-        #a = exp(x)
+        x = linspace(x0, x1, 500)
+        y0 = array((self.get_ini(x0)))
+        sol = odeint(self.vector_field, y0, x).T
 
-        self.Darr = sol.ys[1]
-        self.dDarr = sol.ys[0]/exp(x)  #dDda
-        self.Dminusarr = sol.ys[3]
-        self.dDminusarr = sol.ys[2]/exp(x)
+        self.Darr = sol[1]
+        self.dDarr = sol[0]/exp(x)  #dDda
+        self.Dminusarr = sol[3]
+        self.dDminusarr = sol[2]/exp(x)
         
         self.D = CubicSpline(x,self.Darr)
         self.DD = CubicSpline(x,self.dDarr)  #dDda(x)
         self.Dminus = CubicSpline(x,self.Dminusarr)
         self.DDminus = CubicSpline(x,self.dDminusarr)
+
+    # def vector_field(self,x, y,args):
+    #     a = exp(x)
+    #     dD,D, dDminus,Dminus= y
+        
+    #     epsilon = - self.dHdx(x)/self.H(x)+self.dCdx(x)/self.C(x)
+    #     #epsilon = 2-0.5*(1-3*self.w(x)*self.Ode(x))+self.dCdx(x)/self.C(x)
+        
+    #     F = 1.5*self.Om(x) *self.C(x)#self.dHdx(x)**2/self.H(x)**2+self.d2Hdx2(x)/self.H(x)+2*self.dHdx(x)/self.H(x)-self.dCdx(x)/self.C(x)*self.dHdx(x)/self.H(x)
+        
+    #     #F = -self.dHdx(x)/self.H(x) 
+    #     # this eqaution only valid for wcdm-cq not wcdm or w0wa
+    #     #F = self.dHdx(x)**2/self.H(x)**2+self.d2Hdx2(x)/self.H(x)+2*self.dHdx(x)/self.H(x)-self.dCdx(x)/self.C(x)*self.dHdx(x)/self.H(x)
+
+
+    #     D_D = dD
+    #     D_dD = (epsilon-2)*dD+F*D
+
+    #     D_Dminus = dDminus
+    #     D_dDminus = (epsilon-2)*dDminus+F*Dminus
+
+        
+    #     D_y = D_dD,D_D,D_dDminus,D_Dminus
+    #     return D_y  
+    
+    # def interpD(self):
+        
+    #     stepsize_controller = PIDController(rtol=1e-8, atol=1e-10)#ConstantStepSize()#
+    #     term = ODETerm(self.vector_field)
+    #     solver = Dopri5()
+    #     x0 = self.x0
+    #     x1 = 0.
+    #     dt0 = None
+    #     y0 = self.get_ini(x0)
+    #     saveat = SaveAt(ts=linspace(x0, x1, 500))
+    #     sol = diffeqsolve(term, solver, x0, x1, dt0, y0, saveat=saveat,stepsize_controller=stepsize_controller)
+        
+    #     x = sol.ts
+    #     #a = exp(x)
+
+    #     self.Darr = sol.ys[1]
+    #     self.dDarr = sol.ys[0]/exp(x)  #dDda
+    #     self.Dminusarr = sol.ys[3]
+    #     self.dDminusarr = sol.ys[2]/exp(x)
+        
+    #     self.D = CubicSpline(x,self.Darr)
+    #     self.DD = CubicSpline(x,self.dDarr)  #dDda(x)
+    #     self.Dminus = CubicSpline(x,self.Dminusarr)
+    #     self.DDminus = CubicSpline(x,self.dDminusarr)
         
 
     def fplus(self, x):
