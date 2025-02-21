@@ -76,12 +76,6 @@ class Correlator(object):
             "wa_fld": Option("wa_fld", float,
                 description="w0wa",
                 default=0.) ,
-            "fluid_equation_of_state": Option("fluid_equation_of_state",str,
-                description="either w0wa or chebyshev, for LCDM set w0wa with w0=-1,wa=0", 
-                default='w0wa'),
-            "EFTDE": Option("EFTDE",str,
-                description="where consider EFTDE in greenfunction", 
-                default='False'),
             
             "Dz": Option("Dz", (list, np.ndarray),
                 description="Scale independent growth function over redshift bin. To specify if \'with_redshift_bin\' is True.",
@@ -233,6 +227,12 @@ class Correlator(object):
             "keep_loop_pieces_independent": Option("keep_loop_pieces_independent", bool,
                 description="keep the loop pieces 13 and 22 independent (mainly for debugging)",
                 default=False) ,
+            "fluid_equation_of_state": Option("fluid_equation_of_state",str,
+                description="either w0wa or chebyshev, for LCDM set w0wa with w0=-1,wa=0", 
+                default='w0wa'),
+            "EFTDE": Option("EFTDE",str,
+                description="where consider EFTDE in greenfunction", 
+                default='False'),
         }
 
         if config_dict is not None: self.set(config_dict, load_engines=load_engines)
@@ -600,7 +600,7 @@ class Correlator(object):
             #     cosmo["pk_lin"] *= (factor1*factor2)
             #     cosmo["f"] = float(GF.fplus(np.log(1/(1.+self.c["z"]))))
 
-            if self.config['EFTDE']:
+            if self.c['EFTDE']:
                 cosmo['alphaB'] = M.get_current_derived_parameters(['parameters_2_smg_real_2'])['parameters_2_smg_real_2']
                 cosmo['alphaM'] = M.get_current_derived_parameters(['parameters_2_smg_real_3'])['parameters_2_smg_real_3']
                 cosmo['alphaT'] = M.get_current_derived_parameters(['parameters_2_smg_real_4'])['parameters_2_smg_real_4']
