@@ -1,15 +1,15 @@
 from setuptools import setup
 
 setup(
-    name='pybird_w0wa',
+    name='pybird',
     version='0.2.0',
     description='EFT predictions for biased tracers in redshift space.',
 #    url='https://github.com/pierrexyz/pybird',
     author="Pierre Zhang and Guido D'Amico",
     license='MIT',
-    packages=['pybird_w0wa'],
+    packages=['pybird'],
     install_requires=['numpy', 'scipy'],
-    package_dir = {'pybird_w0wa': 'pybird_w0wa'},
+    package_dir = {'pybird': 'pybird'},
     zip_safe=False,
 
     classifiers = [
