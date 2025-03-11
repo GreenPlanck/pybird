@@ -187,17 +187,28 @@ class Bird(object):
         self.H = cosmo["H"]
 
         if self.co.exact_time:
-            if "w0_fld" in cosmo: 
-                self.w0 = cosmo["w0_fld"]
-                self.wa = cosmo["wa_fld"]
-            else: 
-                self.w0 = None
-                self.wa = 0.
+            EoS_dict={}
+            if cosmo['fluid_equation_of_state']=='w0wa':
+                EoS_dict.update({'w0':cosmo['w0_fld'],'wa':cosmo['wa_fld']})
+            elif cosmo['fluid_equation_of_state']=='chebyshev':
+                EoS_dict.update({'c0':cosmo['c0_fld'],
+                            'c1':cosmo['c1_fld'],
+                            'c2':cosmo['c2_fld'],
+                            'c3':cosmo['c3_fld']})
+            if cosmo['EFTDE']:
+                EoS_dict.update({'alphaB':cosmo['alphaB'],
+                                 'alphaM':cosmo['alphaM'],
+                                 'alphaT':cosmo['alphaT']})
+            #print(cosmo['fluid_equation_of_state'],EoS_dict)
+            #input()
             self.Omega0_m = cosmo["Omega0_m"]
             self.z = cosmo["z"]
-            # print (self.z, self.Omega0_m)
+            #print (self.z, self.Omega0_m)
             self.a = 1/(1.+self.z)
-            GF = GreenFunction(self.Omega0_m, w=self.w0,wa=self.wa, quintessence=self.co.quintessence)
+            if cosmo['EFTDE']:
+                GF = GreenFunction(self.Omega0_m, cosmo['fluid_equation_of_state'],EoS_dict, quintessence=False,EFTDE=True,xin=-7.,xfin=7.)
+            else:
+                GF = GreenFunction(self.Omega0_m, cosmo['fluid_equation_of_state'],EoS_dict, quintessence=self.co.quintessence,EFTDE=False)
             self.Y1 = GF.Y(self.a)
             self.G1t = GF.mG1t(self.a)
             self.V12t = GF.mV12t(self.a)

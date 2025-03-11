@@ -76,6 +76,12 @@ class Correlator(object):
             "wa_fld": Option("wa_fld", float,
                 description="w0wa",
                 default=0.) ,
+            "fluid_equation_of_state": Option("fluid_equation_of_state",str,
+                description="either w0wa or chebyshev, for LCDM set w0wa with w0=-1,wa=0", 
+                default='w0wa'),
+            "EFTDE": Option("EFTDE",str,
+                description="where consider EFTDE in greenfunction", 
+                default='False'),
             
             "Dz": Option("Dz", (list, np.ndarray),
                 description="Scale independent growth function over redshift bin. To specify if \'with_redshift_bin\' is True.",
@@ -103,6 +109,15 @@ class Correlator(object):
                 default=None) ,
             "pk_lin_2": Option("pk_lin_2", (list, np.ndarray),
                 description="Alternative linear matter power spectrum in [Mpc/h]^3 replacing \'pk_lin\' in the internal loop integrals (and resummation)",
+                default=None) ,
+            "alphaB": Option("alphaB", float,
+                description="EFT alpha",
+                default=None) ,
+            "alphaM": Option("alphaM", float,
+                description="EFT alpha",
+                default=None) ,
+            "alphaT": Option("alphaT", float,
+                description="EFT alpha",
                 default=None) ,
         }
 
@@ -568,12 +583,12 @@ class Correlator(object):
                 cosmo["D2"] = M.scale_independent_growth_factor(self.c["z2"])
                 cosmo["f1"] = M.scale_independent_growth_factor_f(self.c["z1"])
                 cosmo["f2"] = M.scale_independent_growth_factor_f(self.c["z2"])
-            if self.c["with_exact_time"] or self.c["with_quintessence"]:
-                cosmo["z"] = self.c["z"]
-                cosmo["Omega0_m"] = M.Omega0_m()
-                if "w0_fld" in cosmo_dict: 
-                    cosmo["w0_fld"] = cosmo_dict["w0_fld"]
-                    cosmo["wa_fld"] = cosmo_dict["wa_fld"]
+            # if self.c["with_exact_time"] or self.c["with_quintessence"]:
+            #     cosmo["z"] = self.c["z"]
+            #     cosmo["Omega0_m"] = M.Omega0_m()
+            #     if "w0_fld" in cosmo_dict: 
+            #         cosmo["w0_fld"] = cosmo_dict["w0_fld"]
+            #         cosmo["wa_fld"] = cosmo_dict["wa_fld"]
             if self.c["with_ap"]:
                 cosmo["H"], cosmo["DA"] = M.Hubble(self.c["z"]) / M.Hubble(0.), M.angular_distance(self.c["z"]) * M.Hubble(0.)
 
@@ -600,11 +615,33 @@ class Correlator(object):
             #     cosmo["pk_lin"] *= (factor1*factor2)
             #     cosmo["f"] = float(GF.fplus(np.log(1/(1.+self.c["z"]))))
 
-            if self.c['EFTDE']:
-                cosmo['alphaB'] = M.get_current_derived_parameters(['parameters_2_smg_real_2'])['parameters_2_smg_real_2']
-                cosmo['alphaM'] = M.get_current_derived_parameters(['parameters_2_smg_real_3'])['parameters_2_smg_real_3']
-                cosmo['alphaT'] = M.get_current_derived_parameters(['parameters_2_smg_real_4'])['parameters_2_smg_real_4']
-                cosmo['EFTDE'] = True
+            # if self.c['EFTDE']:
+            #     cosmo['alphaB'] = M.get_current_derived_parameters(['parameters_2_smg_real_2'])['parameters_2_smg_real_2']
+            #     cosmo['alphaM'] = M.get_current_derived_parameters(['parameters_2_smg_real_3'])['parameters_2_smg_real_3']
+            #     cosmo['alphaT'] = M.get_current_derived_parameters(['parameters_2_smg_real_4'])['parameters_2_smg_real_4']
+            #     cosmo['EFTDE'] = True
+            if self.c["with_exact_time"] or self.c["with_quintessence"]:
+                cosmo["z"] = self.c["z"]
+                cosmo["Omega0_m"] = M.Omega0_m()
+                if M.get_current_derived_parameters(['Omega0_lambda'])['Omega0_lambda']==0.:
+                    if self.c['fluid_equation_of_state'] == 'w0wa':
+                        cosmo["w0_fld"] = M.get_current_derived_parameters(['w0_fld'])['w0_fld']
+                        cosmo["wa_fld"] = M.get_current_derived_parameters(['wa_fld'])['wa_fld']
+                        cosmo['fluid_equation_of_state']='w0wa'
+                    elif self.c['fluid_equation_of_state'] == 'chebyshev':
+                        cosmo["c0_fld"] = M.get_current_derived_parameters(['c0_fld'])['c0_fld']
+                        cosmo["c1_fld"] = M.get_current_derived_parameters(['c1_fld'])['c1_fld']
+                        cosmo["c2_fld"] = M.get_current_derived_parameters(['c2_fld'])['c2_fld']
+                        cosmo["c3_fld"] = M.get_current_derived_parameters(['c3_fld'])['c3_fld']
+                        cosmo['fluid_equation_of_state']='chebyshev'
+
+                    cosmo['EFTDE'] = False
+
+                    if self.c['EFTDE']:
+                        cosmo['alphaB'] = M.get_current_derived_parameters(['parameters_2_smg_real_2'])['parameters_2_smg_real_2']
+                        cosmo['alphaM'] = M.get_current_derived_parameters(['parameters_2_smg_real_3'])['parameters_2_smg_real_3']
+                        cosmo['alphaT'] = M.get_current_derived_parameters(['parameters_2_smg_real_4'])['parameters_2_smg_real_4']
+                        cosmo['EFTDE'] = True
                 
             if self.c["with_quintessence"]: 
                 # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum. 

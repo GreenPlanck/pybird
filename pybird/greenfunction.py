@@ -17,6 +17,7 @@ class GreenFunction(object):
                  xin=-12.,xfin=0.):
         self.vectorize = vectorize
         self.Omega0_m = Omega0_m
+        print("EoS_dict",EoS_dict)
         if self.vectorize:
             self.Omega0_m = np.array(Omega0_m)
             self.Omega0_k = np.array(Omega0_k)
