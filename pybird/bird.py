@@ -209,8 +209,8 @@ class Bird(object):
                 '''
                 fix the initial condition either to future or past. this should be tested.
                 '''
-                #GF = GreenFunction(self.Omega0_m, cosmo['fluid_equation_of_state'],EoS_dict, quintessence=False,EFTDE=True,xin=-7.,xfin=7.)
-                GF = GreenFunction(self.Omega0_m, cosmo['fluid_equation_of_state'],EoS_dict, quintessence=False,EFTDE=True,xin=-7.,xfin=0.)
+                GF = GreenFunction(self.Omega0_m, cosmo['fluid_equation_of_state'],EoS_dict, quintessence=False,EFTDE=True,xin=-7.,xfin=7.)
+                #GF = GreenFunction(self.Omega0_m, cosmo['fluid_equation_of_state'],EoS_dict, quintessence=False,EFTDE=True,xin=-7.,xfin=0.)
             else:
                 GF = GreenFunction(self.Omega0_m, cosmo['fluid_equation_of_state'],EoS_dict, quintessence=self.co.quintessence,EFTDE=False)
             self.Y1 = GF.Y(self.a)
