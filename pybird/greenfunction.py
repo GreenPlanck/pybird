@@ -17,7 +17,6 @@ class GreenFunction(object):
                  xin=-12.,xfin=0.):
         self.vectorize = vectorize
         self.Omega0_m = Omega0_m
-        print("EoS_dict",EoS_dict)
         if self.vectorize:
             self.Omega0_m = np.array(Omega0_m)
             self.Omega0_k = np.array(Omega0_k)
@@ -233,10 +232,17 @@ class GreenFunction(object):
         ai = exp(xi)
         afin  = exp(xfin)
         if self.EFTDE:
-            Di = ai
-            dDi = ai
-            Dminusi = afin**(-2)
-            dDminusi = -2.*afin**(-2.)
+            if xfin>0:
+                Di = ai
+                dDi = ai
+                Dminusi = afin**(-2)
+                dDminusi = -2.*afin**(-2.)
+            else:
+                Di = ai
+                dDi = ai
+                Dminusi = ai**(-3/2)
+                dDminusi = -3./2.*ai**(-3./2.)
+
         else:
             Di = ai
             dDi = ai
@@ -289,16 +295,26 @@ class GreenFunction(object):
         x = linspace(x0, x1, 500)
 
         if self.EFTDE:
-            y0p,y0m = self.get_ini(x0,x1)
-            sol_p = odeint(self.vector_field_p, array(y0p), x).T
-            sol_m = odeint(self.vector_field_m, array(y0m), x[::-1]).T
+            if self.xfin>0:
+                y0p,y0m = self.get_ini(x0,x1)
+                sol_p = odeint(self.vector_field_p, array(y0p), x).T
+                sol_m = odeint(self.vector_field_m, array(y0m), x[::-1]).T
 
-            self.Darr = sol_p[1]
-            self.dDarr = sol_p[0]/exp(x)  #dDda
-            self.Dminusarr1 = sol_m[1][::-1]
-            self.dDminusarr = sol_m[0][::-1]
-            self.Dminusarr = self.Dminusarr1/(self.Dminusarr1[0]/(exp(-3*self.x0/2)))
-            self.dDminusarr = self.dDminusarr/(self.Dminusarr1[0]/(exp(-3*self.x0/2)))/exp(x)
+                self.Darr = sol_p[1]
+                self.dDarr = sol_p[0]/exp(x)  #dDda
+                self.Dminusarr1 = sol_m[1][::-1]
+                self.dDminusarr = sol_m[0][::-1]
+                self.Dminusarr = self.Dminusarr1/(self.Dminusarr1[0]/(exp(-3*self.x0/2)))
+                self.dDminusarr = self.dDminusarr/(self.Dminusarr1[0]/(exp(-3*self.x0/2)))/exp(x)
+            else:
+                y0p,y0m = self.get_ini(x0,x1)
+                sol_p = odeint(self.vector_field_p, array(y0p), x).T
+                sol_m = odeint(self.vector_field_m, array(y0m), x).T
+
+                self.Darr = sol_p[1]
+                self.dDarr = sol_p[0]/exp(x)  #dDda
+                self.Dminusarr = sol_m[1]
+                self.dDminusarr = sol_m[0]/exp(x)
 
         else:
             y0p,y0m = self.get_ini(x0,x1)
