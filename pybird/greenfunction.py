@@ -30,6 +30,8 @@ class GreenFunction(object):
         
         self.quintessence = quintessence
         self.EFTDE = EFTDE
+        if self.quintessence and self.EFTDE:
+            raise ValueError('Couldnot quintessence with EFTDE')
 
 
         self.fluid_equation_of_state = fluid_equation_of_state
@@ -232,17 +234,10 @@ class GreenFunction(object):
         ai = exp(xi)
         afin  = exp(xfin)
         if self.EFTDE:
-            if xfin>0:
-                Di = ai
-                dDi = ai
-                Dminusi = afin**(-2)
-                dDminusi = -2.*afin**(-2.)
-            else:
-                Di = ai
-                dDi = ai
-                Dminusi = ai**(-3/2)
-                dDminusi = -3./2.*ai**(-3./2.)
-
+            Di = ai
+            dDi = ai
+            Dminusi = afin**(-2)
+            dDminusi = -2.*afin**(-2.)
         else:
             Di = ai
             dDi = ai
@@ -295,26 +290,16 @@ class GreenFunction(object):
         x = linspace(x0, x1, 500)
 
         if self.EFTDE:
-            if self.xfin>0:
-                y0p,y0m = self.get_ini(x0,x1)
-                sol_p = odeint(self.vector_field_p, array(y0p), x).T
-                sol_m = odeint(self.vector_field_m, array(y0m), x[::-1]).T
+            y0p,y0m = self.get_ini(x0,x1)
+            sol_p = odeint(self.vector_field_p, array(y0p), x).T
+            sol_m = odeint(self.vector_field_m, array(y0m), x[::-1]).T
 
-                self.Darr = sol_p[1]
-                self.dDarr = sol_p[0]/exp(x)  #dDda
-                self.Dminusarr1 = sol_m[1][::-1]
-                self.dDminusarr = sol_m[0][::-1]
-                self.Dminusarr = self.Dminusarr1/(self.Dminusarr1[0]/(exp(-3*self.x0/2)))
-                self.dDminusarr = self.dDminusarr/(self.Dminusarr1[0]/(exp(-3*self.x0/2)))/exp(x)
-            else:
-                y0p,y0m = self.get_ini(x0,x1)
-                sol_p = odeint(self.vector_field_p, array(y0p), x).T
-                sol_m = odeint(self.vector_field_m, array(y0m), x).T
-
-                self.Darr = sol_p[1]
-                self.dDarr = sol_p[0]/exp(x)  #dDda
-                self.Dminusarr = sol_m[1]
-                self.dDminusarr = sol_m[0]/exp(x)
+            self.Darr = sol_p[1]
+            self.dDarr = sol_p[0]/exp(x)  #dDda
+            self.Dminusarr1 = sol_m[1][::-1]
+            self.dDminusarr = sol_m[0][::-1]
+            self.Dminusarr = self.Dminusarr1/(self.Dminusarr1[0]/(exp(-3*self.x0/2)))
+            self.dDminusarr = self.dDminusarr/(self.Dminusarr1[0]/(exp(-3*self.x0/2)))/exp(x)
 
         else:
             y0p,y0m = self.get_ini(x0,x1)
