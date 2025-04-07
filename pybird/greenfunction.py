@@ -7,13 +7,13 @@ from scipy.interpolate import CubicSpline
 # jax.config.update("jax_enable_x64", True)
 from scipy.integrate import odeint
 from scipy.special import erf
-from numpy import exp,log,linspace,array,sqrt,pi
+from numpy import exp,log,linspace,array,sqrt,pi,isfinite
 
 # numerical D,DD+,D-,DD-
 class GreenFunction(object):
 
     def __init__(self, Omega0_m, fluid_equation_of_state = 'w0wa',EoS_dict=None, quintessence=False, EFTDE=False,parameterizations='propto_omega',
-                 Omega0_k=0., vectorize=False,
+                 Omega0_k=0., vectorize=False,convention = 'hiclass',EFTonly=False,future_to_past=True,
                  xin=-12.,xfin=0.):
         self.vectorize = vectorize
         self.Omega0_m = Omega0_m
@@ -30,6 +30,9 @@ class GreenFunction(object):
         
         self.quintessence = quintessence
         self.EFTDE = EFTDE
+        self.convention = convention
+        self.future_to_past = future_to_past
+
         if self.quintessence and self.EFTDE:
             raise ValueError('Couldnot quintessence with EFTDE')
 
@@ -58,7 +61,7 @@ class GreenFunction(object):
 
 
         if self.EFTDE: self.EFTDE_alphas(EoS_dict=EoS_dict,parameterizations=parameterizations)
-        self.interpD()
+        if not EFTonly: self.interpD()
 
 
     def EFTDE_alphas(self,EoS_dict=None,parameterizations='propto_omega'):
@@ -68,7 +71,13 @@ class GreenFunction(object):
             # if EFTDE_value are all zero, the ode will break, we then enforece alphaB=1
             EFTDE_value[0]=1.
             print('You input no EFT parameters, we use default 1,0,0,0,0,0')
-        
+        if self.convention == 'hiclass' and 'alphaB' in EoS_dict.keys():
+            # we should use vernizzi convention
+            # alpha_B^v = -1/2*alpha_B^hi
+            # alpha_B0^v Omega_d/Omega_d0 = -1/2 alpha_B0^hi*Omega_d
+            # alpha_B0^v = -1/2 alpha_B0^hi*Omega_d0
+            # where alpha_B0^hi is we get from hiclass
+            EFTDE_value[0] = -1./2.*EoS_dict['alphaB']*(1.-self.Omega0_m)
         if parameterizations=='constant':
             self.alpha_B = lambda x : EFTDE_value[0]
             self.alpha_T = lambda x : EFTDE_value[1]
@@ -84,15 +93,15 @@ class GreenFunction(object):
             self.dalpha_V2dx = lambda x : 0
             self.dalpha_V3dx = lambda x : 0
         elif parameterizations == 'propto_omega':
-            # alpha = gamma*Omega_{dark energy}
-            self.alpha_B = lambda x : EFTDE_value[0]*self.Ode(x)
+            # use vernizzi convention alpha = c*Omega_de/Omega_de0
+            self.alpha_B = lambda x : EFTDE_value[0]*self.Ode(x)/(1.-self.Omega0_m)
             self.alpha_T = lambda x : EFTDE_value[1]*self.Ode(x)
             self.alpha_M = lambda x : EFTDE_value[2]*self.Ode(x)
             self.alpha_V1 = lambda x : EFTDE_value[3]*self.Ode(x)
             self.alpha_V2 = lambda x : EFTDE_value[4]*self.Ode(x)
             self.alpha_V3 = lambda x : EFTDE_value[5]*self.Ode(x)
 
-            self.dalpha_Bdx = lambda x : EFTDE_value[0]*self.dOdedx(x)
+            self.dalpha_Bdx = lambda x : EFTDE_value[0]*self.dOdedx(x)/(1.-self.Omega0_m)
             self.dalpha_Tdx = lambda x : EFTDE_value[1]*self.dOdedx(x)
             self.dalpha_Mdx = lambda x : EFTDE_value[2]*self.dOdedx(x)
             self.dalpha_V1dx = lambda x : EFTDE_value[3]*self.dOdedx(x)
@@ -103,11 +112,14 @@ class GreenFunction(object):
     def ksai(self,x): return self.alpha_B(x)*(1+self.alpha_T(x))+self.alpha_T(x)-self.alpha_M(x)
     def nu(self,x): 
         dHdt_over_H2 = 3/2*(-self.w(x)*(1-self.Om(x))-1)
-        return -(
+        temp = -(
                 (1+self.alpha_B(x))*(
                     self.alpha_B(x)*(1+self.alpha_T(x))+self.alpha_T(x)-self.alpha_M(x)+dHdt_over_H2)
                     +self.dalpha_Bdx(x)+3/2*self.Om(x)
                     )
+        if temp == 0.: temp+=1e-16
+        #print(temp)
+        return temp
     def C2(self,x): return -self.nu(x)-self.alpha_B(x)*(self.ksai(x)+self.alpha_T(x)-self.alpha_M(x))
     def C3(self,x): 
         dHdt_over_H2 = 3/2*(-self.w(x)*(1-self.Om(x))-1)
@@ -289,7 +301,7 @@ class GreenFunction(object):
         x1 = self.xfin
         x = linspace(x0, x1, 500)
 
-        if self.EFTDE:
+        if self.EFTDE and self.future_to_past:
             y0p,y0m = self.get_ini(x0,x1)
             sol_p = odeint(self.vector_field_p, array(y0p), x).T
             sol_m = odeint(self.vector_field_m, array(y0m), x[::-1]).T
@@ -298,8 +310,8 @@ class GreenFunction(object):
             self.dDarr = sol_p[0]/exp(x)  #dDda
             self.Dminusarr1 = sol_m[1][::-1]
             self.dDminusarr = sol_m[0][::-1]
-            self.Dminusarr = self.Dminusarr1/(self.Dminusarr1[0]/(exp(-3*self.x0/2)))
-            self.dDminusarr = self.dDminusarr/(self.Dminusarr1[0]/(exp(-3*self.x0/2)))/exp(x)
+            self.Dminusarr = self.Dminusarr1/(self.Dminusarr1[0]/(exp(-3*self.x0/2))+1.e-16)
+            self.dDminusarr = self.dDminusarr/(self.Dminusarr1[0]/(exp(-3*self.x0/2))+1.e-16)/exp(x)
 
         else:
             y0p,y0m = self.get_ini(x0,x1)
@@ -311,10 +323,14 @@ class GreenFunction(object):
             self.Dminusarr = sol_m[1]
             self.dDminusarr = sol_m[0]/exp(x)
 
-        self.D = CubicSpline(x,self.Darr)
-        self.DD = CubicSpline(x,self.dDarr)  #dDda(x)
-        self.Dminus = CubicSpline(x,self.Dminusarr)
-        self.DDminus = CubicSpline(x,self.dDminusarr)
+        # self.D = CubicSpline(x,self.Darr)
+        # self.DD = CubicSpline(x,self.dDarr)  #dDda(x)
+        # self.Dminus = CubicSpline(x,self.Dminusarr)
+        # self.DDminus = CubicSpline(x,self.dDminusarr)
+        self.D = CubicSpline(x[isfinite(self.Darr)],self.Darr[isfinite(self.Darr)])
+        self.DD = CubicSpline(x[isfinite(self.dDarr)],self.dDarr[isfinite(self.dDarr)])  #dDda(x)
+        self.Dminus = CubicSpline(x[isfinite(self.Dminusarr)],self.Dminusarr[isfinite(self.Dminusarr)])
+        self.DDminus = CubicSpline(x[isfinite(self.dDminusarr)],self.dDminusarr[isfinite(self.dDminusarr)])
 
     # def vector_field(self,x, y,args):
     #     a = exp(x)
