@@ -216,7 +216,7 @@ class Bird(object):
             self.Y1 = GF.Y(self.a)
             self.G1t = GF.mG1t(self.a)
             self.V12t = GF.mV12t(self.a)
-            if self.co.quintessence:
+            if self.co.quintessence or cosmo['EFTDE']:
                 self.G1 = GF.G(self.a)
                 self.f = float(GF.fplus(np.log(self.a)))
             else: self.G1 = 1.
